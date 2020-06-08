@@ -770,28 +770,24 @@ export default class DevServer {
     const nowConfig = await this.getNowConfig(false);
     const nowConfigBuild = nowConfig.build || {};
 
-    const cloudEnvVariables = await getDecryptedEnvRecords(
-      this.output,
-      client,
-      project,
-      4,
-      ProjectEnvTarget.Development
-    );
-
-    const [localEnvVars, localBuildEnvVars] = await Promise.all([
+    const [runEnv, buildEnv] = await Promise.all([
       this.getLocalEnv('.env', nowConfig.env),
       this.getLocalEnv('.env.build', nowConfigBuild.env),
     ]);
 
-    const runEnv = Object.keys(localEnvVars).length
-      ? localEnvVars
-      : cloudEnvVariables;
-    const buildEnv = Object.keys(localBuildEnvVars).length
-      ? localBuildEnvVars
-      : cloudEnvVariables;
+    let allEnv = { ...buildEnv, ...runEnv };
 
-    // if local .env/.env.build file exists, don't use cloud variables
-    const allEnv = { ...buildEnv, ...runEnv };
+    // if local .env/.env.build don't exist, use cloud variables
+    if (Object.keys(allEnv).length === 0) {
+      allEnv = await getDecryptedEnvRecords(
+        this.output,
+        client,
+        project,
+        4,
+        ProjectEnvTarget.Development
+      );
+    }
+
     Object.assign(process.env, allEnv);
     this.envConfigs = { buildEnv, runEnv, allEnv };
 
