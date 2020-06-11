@@ -1615,7 +1615,7 @@ test('create a staging deployment', async t => {
     /Setting target to staging/gm,
     formatOutput(targetCall)
   );
-
+  t.regex(targetCall.stdout, /https:\/\//gm);
   t.is(targetCall.exitCode, 0, formatOutput(targetCall));
 
   const { host } = new URL(targetCall.stdout);
@@ -1651,6 +1651,7 @@ test('create a production deployment', async t => {
     /Setting target to production/gm,
     formatOutput(targetCall)
   );
+  t.regex(targetCall.stdout, /https:\/\//gm);
 
   const { host: targetHost } = new URL(targetCall.stdout);
   const targetDeployment = await apiFetch(
@@ -1674,6 +1675,7 @@ test('create a production deployment', async t => {
     /Setting target to production/gm,
     formatOutput(targetCall)
   );
+  t.regex(call.stdout, /https:\/\//gm);
 
   const { host } = new URL(call.stdout);
   const deployment = await apiFetch(
@@ -2920,4 +2922,41 @@ test('deploys with only vercel.json and README.md', async t => {
   const res = await fetch(`https://${host}/README.md`);
   const text = await res.text();
   t.regex(text, /readme contents/);
+});
+
+test('reject conflicting `vercel.json` and `now.json` files', async t => {
+  const directory = fixture('conflicting-now-json-vercel-json');
+
+  const { exitCode, stderr, stdout } = await execa(
+    binaryPath,
+    [...defaultArgs, '--confirm'],
+    {
+      cwd: directory,
+      reject: false,
+    }
+  );
+
+  t.is(exitCode, 1, formatOutput({ stderr, stdout }));
+  t.true(
+    stderr.includes(
+      'Cannot use both a `vercel.json` and `now.json` file. Please delete the `now.json` file.'
+    ),
+    formatOutput({ stderr, stdout })
+  );
+});
+
+test('`vc --debug project ls` should output the projects listing', async t => {
+  const { exitCode, stderr, stdout } = await execa(
+    binaryPath,
+    [...defaultArgs, '--debug', 'project', 'ls'],
+    {
+      reject: false,
+    }
+  );
+
+  t.is(exitCode, 0, formatOutput({ stderr, stdout }));
+  t.true(
+    stdout.includes('> Projects found under'),
+    formatOutput({ stderr, stdout })
+  );
 });
